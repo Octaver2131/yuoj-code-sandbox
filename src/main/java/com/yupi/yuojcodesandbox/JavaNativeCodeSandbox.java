@@ -9,6 +9,8 @@ import com.yupi.yuojcodesandbox.model.ExecuteCodeRequest;
 import com.yupi.yuojcodesandbox.model.ExecuteCodeResponse;
 import com.yupi.yuojcodesandbox.model.ExecuteMessage;
 import com.yupi.yuojcodesandbox.model.JudgeInfo;
+import com.yupi.yuojcodesandbox.security.DefaultSecurityManager;
+import com.yupi.yuojcodesandbox.security.DenySecurityManager;
 import com.yupi.yuojcodesandbox.utils.ProcessUtils;
 
 import java.io.File;
@@ -28,6 +30,10 @@ public class JavaNativeCodeSandbox implements CodeSandbox {
 
     public static final List<String> blackList = Arrays.asList("Files", "exec");
 
+    private static final String SECURITY_MANAGER_PATH = "C:\\Users\\Octaver\\Desktop\\yuoj-code-sandbox\\src\\main\\resources\\security";
+
+    public static final String SECURITY_MANAGER_CLASS_NAME = "MySecurityManager";
+
     public static final WordTree WORD_TREE;
 
     static {
@@ -40,13 +46,13 @@ public class JavaNativeCodeSandbox implements CodeSandbox {
         JavaNativeCodeSandbox javaNativeCodeSandbox = new JavaNativeCodeSandbox();
         ExecuteCodeRequest executeCodeRequest = new ExecuteCodeRequest();
         executeCodeRequest.setInputList(Arrays.asList("1 2", "1 3"));
-        String code = ResourceUtil.readStr("textCode/simpleComputeArgs/Main.java", StandardCharsets.UTF_8);
+//        String code = ResourceUtil.readStr("textCode/simpleComputeArgs/Main.java", StandardCharsets.UTF_8);
 //        String code = ResourceUtil.readStr("textCode/simpleCompute/Main.java", StandardCharsets.UTF_8);
 //        String code = ResourceUtil.readStr("textCode/unsafeCode/SleepError.java", StandardCharsets.UTF_8);
 //        String code = ResourceUtil.readStr("textCode/unsafeCode/MemoryError.java", StandardCharsets.UTF_8);
 //        String code = ResourceUtil.readStr("textCode/unsafeCode/ReadFileError.java", StandardCharsets.UTF_8);
 //        String code = ResourceUtil.readStr("textCode/unsafeCode/WriteFileError.java", StandardCharsets.UTF_8);
-//        String code = ResourceUtil.readStr("textCode/unsafeCode/RunFileError.java", StandardCharsets.UTF_8);
+        String code = ResourceUtil.readStr("textCode/unsafeCode/RunFileError.java", StandardCharsets.UTF_8);
         executeCodeRequest.setCode(code);
         executeCodeRequest.setLanguage("java");
         ExecuteCodeResponse executeCodeResponse = javaNativeCodeSandbox.executeCode(executeCodeRequest);
@@ -56,16 +62,18 @@ public class JavaNativeCodeSandbox implements CodeSandbox {
     @Override
     public ExecuteCodeResponse executeCode(ExecuteCodeRequest executeCodeRequest) {
 
+//        System.setSecurityManager(new DefaultSecurityManager());
+
         List<String> inputList = executeCodeRequest.getInputList();
         String code = executeCodeRequest.getCode();
         String language = executeCodeRequest.getLanguage();
 
         // 检验代码中是否包含黑名单的指令
-        FoundWord foundWord = WORD_TREE.matchWord(code);
-        if (foundWord != null) {
-            System.out.println("代码中存在违规关键字：" + foundWord.getWord());
-            return null;
-        }
+//        FoundWord foundWord = WORD_TREE.matchWord(code);
+//        if (foundWord != null) {
+//            System.out.println("代码中存在违规关键字：" + foundWord.getWord());
+//            return null;
+//        }
 
         // 1. 把用户代码保存为文件
         String userDir = System.getProperty("user.dir");
@@ -81,7 +89,7 @@ public class JavaNativeCodeSandbox implements CodeSandbox {
         File userCodeFile = FileUtil.writeString(code, userCodePath, StandardCharsets.UTF_8);
 
         // 2. 编译代码，得到 class 文件
-        String compileCmd = String.format("javac -encoding utf-8 %s", userCodeFile.getAbsolutePath());
+        String compileCmd = String.format("javac -source 8 -target 8 -encoding utf-8 %s", userCodeFile.getAbsolutePath());
         try {
             Process compileProcess = Runtime.getRuntime().exec(compileCmd);
             ExecuteMessage executeMessage = ProcessUtils.runProcessAndGetMessage(compileProcess, "编译");
@@ -93,7 +101,8 @@ public class JavaNativeCodeSandbox implements CodeSandbox {
         // 3. 运行代码，得到输出结果
         List<ExecuteMessage> executeMessageList = new ArrayList<>();
         for (String inputArgs : inputList) {
-            String runCmd = String.format("java -Xmx1024m -Dfile.encoding=UTF-8 -cp %s Main %s", userCodeParentPath, inputArgs);
+//            String runCmd = String.format("java -Xmx1024m -Dfile.encoding=UTF-8 -cp %s Main %s", userCodeParentPath, inputArgs);
+            String runCmd = String.format("java -Xmx1024m -Dfile.encoding=UTF-8 -cp %s;%s -Djava.security.manager=%s Main %s", userCodeParentPath, SECURITY_MANAGER_PATH, SECURITY_MANAGER_CLASS_NAME, inputArgs);
             // 超时控制
             try {
                 Process runProcess = Runtime.getRuntime().exec(runCmd);
