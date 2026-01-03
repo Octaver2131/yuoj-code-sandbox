@@ -3,14 +3,11 @@ package com.yupi.yuojcodesandbox;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.resource.ResourceUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.dfa.FoundWord;
 import cn.hutool.dfa.WordTree;
 import com.yupi.yuojcodesandbox.model.ExecuteCodeRequest;
 import com.yupi.yuojcodesandbox.model.ExecuteCodeResponse;
 import com.yupi.yuojcodesandbox.model.ExecuteMessage;
 import com.yupi.yuojcodesandbox.model.JudgeInfo;
-import com.yupi.yuojcodesandbox.security.DefaultSecurityManager;
-import com.yupi.yuojcodesandbox.security.DenySecurityManager;
 import com.yupi.yuojcodesandbox.utils.ProcessUtils;
 
 import java.io.File;
