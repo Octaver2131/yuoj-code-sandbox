@@ -1,6 +1,5 @@
 package com.yupi.yuojcodesandbox;
 
-import cn.hutool.core.date.StopWatch;
 import cn.hutool.core.io.resource.ResourceUtil;
 import cn.hutool.core.util.ArrayUtil;
 import com.github.dockerjava.api.DockerClient;
@@ -13,6 +12,7 @@ import com.yupi.yuojcodesandbox.model.ExecuteCodeRequest;
 import com.yupi.yuojcodesandbox.model.ExecuteCodeResponse;
 import com.yupi.yuojcodesandbox.model.ExecuteMessage;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StopWatch;
 
 import java.io.Closeable;
 import java.io.File;
@@ -26,21 +26,17 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class JavaDockerCodeSandbox extends JavaCodeSandboxTemplate {
 
-    private static final long TIME_OUT = 10000L;
+    private static final long TIME_OUT = 5000L;
 
-    public static final Boolean FIRST_INIT = true;
+    private static final Boolean FIRST_INIT = true;
 
     public static void main(String[] args) {
         JavaDockerCodeSandbox javaNativeCodeSandbox = new JavaDockerCodeSandbox();
         ExecuteCodeRequest executeCodeRequest = new ExecuteCodeRequest();
         executeCodeRequest.setInputList(Arrays.asList("1 2", "1 3"));
-        String code = ResourceUtil.readStr("textCode/simpleComputeArgs/Main.java", StandardCharsets.UTF_8);
-//        String code = ResourceUtil.readStr("textCode/simpleCompute/Main.java", StandardCharsets.UTF_8);
-//        String code = ResourceUtil.readStr("textCode/unsafeCode/SleepError.java", StandardCharsets.UTF_8);
-//        String code = ResourceUtil.readStr("textCode/unsafeCode/MemoryError.java", StandardCharsets.UTF_8);
-//        String code = ResourceUtil.readStr("textCode/unsafeCode/ReadFileError.java", StandardCharsets.UTF_8);
-//        String code = ResourceUtil.readStr("textCode/unsafeCode/WriteFileError.java", StandardCharsets.UTF_8);
-//        String code = ResourceUtil.readStr("textCode/unsafeCode/RunFileError.java", StandardCharsets.UTF_8);
+        String code = ResourceUtil.readStr("testCode/simpleComputeArgs/Main.java", StandardCharsets.UTF_8);
+//        String code = ResourceUtil.readStr("testCode/unsafeCode/RunFileError.java", StandardCharsets.UTF_8);
+//        String code = ResourceUtil.readStr("testCode/simpleCompute/Main.java", StandardCharsets.UTF_8);
         executeCodeRequest.setCode(code);
         executeCodeRequest.setLanguage("java");
         ExecuteCodeResponse executeCodeResponse = javaNativeCodeSandbox.executeCode(executeCodeRequest);
@@ -48,28 +44,19 @@ public class JavaDockerCodeSandbox extends JavaCodeSandboxTemplate {
     }
 
     /**
-     * 3. 创建容器，把文件复制到容器内
-     *
+     * 3、创建容器，把文件复制到容器内
      * @param userCodeFile
      * @param inputList
      * @return
      */
     @Override
-    public List<ExecuteMessage> runFiles(File userCodeFile, List<String> inputList) {
-        String userCodeParentPath =  userCodeFile.getParentFile().getAbsolutePath();
-        // 3. 创建容器，把文件复制到容器内
+    public List<ExecuteMessage> runFile(File userCodeFile, List<String> inputList) {
+        String userCodeParentPath = userCodeFile.getParentFile().getAbsolutePath();
+        // 获取默认的 Docker Client
         DockerClient dockerClient = DockerClientBuilder.getInstance().build();
 
         // 拉取镜像
-        // 原镜像
-//        String sourceImage = "openjdk:8-alpine"
-        String sourceImage = "swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/openjdk:8-jdk-alpine";
-        // 新标签仓库名
-        String repo = "openjdk";
-        // 新标签
-        String tag = "8-jdk-alpine";
-
-        String image = sourceImage;
+        String image = "openjdk:8-alpine";
         if (FIRST_INIT) {
             PullImageCmd pullImageCmd = dockerClient.pullImageCmd(image);
             PullImageResultCallback pullImageResultCallback = new PullImageResultCallback() {
@@ -88,12 +75,11 @@ public class JavaDockerCodeSandbox extends JavaCodeSandboxTemplate {
                 throw new RuntimeException(e);
             }
         }
+
         System.out.println("下载完成");
 
-        dockerClient.tagImageCmd(sourceImage, repo, tag).exec();
-
-
         // 创建容器
+
         CreateContainerCmd containerCmd = dockerClient.createContainerCmd(image);
         HostConfig hostConfig = new HostConfig();
         hostConfig.withMemory(100 * 1000 * 1000L);
@@ -116,17 +102,17 @@ public class JavaDockerCodeSandbox extends JavaCodeSandboxTemplate {
         // 启动容器
         dockerClient.startContainerCmd(containerId).exec();
 
-        // docker exec reverent_kalam java -cp /app Main 1 3
+        // docker exec keen_blackwell java -cp /app Main 1 3
         // 执行命令并获取结果
         List<ExecuteMessage> executeMessageList = new ArrayList<>();
         for (String inputArgs : inputList) {
             StopWatch stopWatch = new StopWatch();
             String[] inputArgsArray = inputArgs.split(" ");
-            String[] cmdArray = ArrayUtil.append(new String[] { "java", "-cp", "/app", "Main", "1", "3" }, inputArgsArray);
+            String[] cmdArray = ArrayUtil.append(new String[]{"java", "-cp", "/app", "Main"}, inputArgsArray);
             ExecCreateCmdResponse execCreateCmdResponse = dockerClient.execCreateCmd(containerId)
                     .withCmd(cmdArray)
-                    .withAttachStdin(true)
                     .withAttachStderr(true)
+                    .withAttachStdin(true)
                     .withAttachStdout(true)
                     .exec();
             System.out.println("创建执行命令：" + execCreateCmdResponse);
@@ -134,8 +120,8 @@ public class JavaDockerCodeSandbox extends JavaCodeSandboxTemplate {
             ExecuteMessage executeMessage = new ExecuteMessage();
             final String[] message = {null};
             final String[] errorMessage = {null};
-            // 判断是否超时
             long time = 0L;
+            // 判断是否超时
             final boolean[] timeout = {true};
             String execId = execCreateCmdResponse.getId();
             ExecStartResultCallback execStartResultCallback = new ExecStartResultCallback() {
@@ -151,18 +137,18 @@ public class JavaDockerCodeSandbox extends JavaCodeSandboxTemplate {
                     StreamType streamType = frame.getStreamType();
                     if (StreamType.STDERR.equals(streamType)) {
                         errorMessage[0] = new String(frame.getPayload());
-                        System.out.println("输出错误结果" + errorMessage[0]);
+                        System.out.println("输出错误结果：" + errorMessage[0]);
                     } else {
                         message[0] = new String(frame.getPayload());
-                        System.out.println("输出结果" + message[0]);
+                        System.out.println("输出结果：" + message[0]);
                     }
                     super.onNext(frame);
                 }
             };
 
-
             final long[] maxMemory = {0L};
-            // 获取占用内存
+
+            // 获取占用的内存
             StatsCmd statsCmd = dockerClient.statsCmd(containerId);
             ResultCallback<Statistics> statisticsResultCallback = statsCmd.exec(new ResultCallback<Statistics>() {
 
@@ -193,7 +179,6 @@ public class JavaDockerCodeSandbox extends JavaCodeSandboxTemplate {
                 }
             });
             statsCmd.exec(statisticsResultCallback);
-
             try {
                 stopWatch.start();
                 dockerClient.execStartCmd(execId)
@@ -208,8 +193,8 @@ public class JavaDockerCodeSandbox extends JavaCodeSandboxTemplate {
             }
             executeMessage.setMessage(message[0]);
             executeMessage.setErrorMessage(errorMessage[0]);
-            executeMessage.setMemory(maxMemory[0]);
             executeMessage.setTime(time);
+            executeMessage.setMemory(maxMemory[0]);
             executeMessageList.add(executeMessage);
         }
         return executeMessageList;

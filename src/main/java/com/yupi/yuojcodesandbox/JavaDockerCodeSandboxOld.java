@@ -272,7 +272,7 @@ public class JavaDockerCodeSandboxOld implements CodeSandbox {
         for (ExecuteMessage executeMessage : executeMessageList) {
             String errorMessage = executeMessage.getErrorMessage();
             if (StrUtil.isNotBlank(errorMessage)) {
-                executeCodeResponse.setMassage(errorMessage);
+                executeCodeResponse.setMessage(errorMessage);
                 // 执行中存在错误
                 executeCodeResponse.setStatus(3);
                 break;
@@ -311,7 +311,7 @@ public class JavaDockerCodeSandboxOld implements CodeSandbox {
     private ExecuteCodeResponse getResponse(Throwable e) {
         ExecuteCodeResponse executeCodeResponse = new ExecuteCodeResponse();
         executeCodeResponse.setOutputList(new ArrayList<>());
-        executeCodeResponse.setMassage(e.getMessage());
+        executeCodeResponse.setMessage(e.getMessage());
         // 表示代码沙箱错误
         executeCodeResponse.setStatus(2);
         executeCodeResponse.setJudgeInfo(new JudgeInfo());
