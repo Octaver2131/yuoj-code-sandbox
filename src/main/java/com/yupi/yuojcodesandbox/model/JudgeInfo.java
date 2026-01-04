@@ -11,7 +11,7 @@ public class JudgeInfo {
     /**
      * 程序执行信息
      */
-    private String massage;
+    private String message;
 
     /**
      * 消耗内存（KB）
