@@ -18,12 +18,12 @@ public class ExecuteCodeResponse {
     /**
      * 接口信息
      */
-    private String massage;
+    private String message;
 
     /**
      * 执行状态
      */
-    private Integer Status;
+    private Integer status;
 
     /**
      * 判题信息
